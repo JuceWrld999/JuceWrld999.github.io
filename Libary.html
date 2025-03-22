@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Catalog & Player</title>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: transparent;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 16px;
+            backdrop-filter: blur(5px);
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .catalog-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .song-card {
+            background: rgba(26, 26, 46, 0.8);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .song-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .song-card img {
+            width: 200px;
+            height: 200px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            object-fit: cover;
+        }
+
+        .song-card button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(45deg, #a8e6cf, #dcedc1);
+            color: #1a1a2e;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+            width: 100%;
+        }
+
+        .song-card button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(168, 230, 207, 0.3);
+        }
+
+        .library-badge {
+            background: #4CAF50;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: linear-gradient(45deg, #a8e6cf, #dcedc1);
+            color: #1a1a2e;
+        }
+
+        .player-container {
+            background: rgba(26, 26, 46, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .player-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .now-playing {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div id="particles-js"></div>
+    <div class="container">
+        <div class="player-container">
+            <div class="now-playing">
+                <h2 id="nowPlayingTitle">Select a song to play</h2>
+                <p id="nowPlayingArtist"></p>
+            </div>
+            <audio id="audioPlayer" controls></audio>
+            <div class="player-controls">
+                <button onclick="prevSong()">Previous</button>
+                <button onclick="playPause()">Play/Pause</button>
+                <button onclick="nextSong()">Next</button>
+            </div>
+        </div>
+
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="Search songs..." id="searchInput">
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('catalog')">Catalog</div>
+            <div class="tab" onclick="switchTab('library')">My Library</div>
+        </div>
+
+        <div id="catalogContainer" class="catalog-container"></div>
+    </div>
+
+    <script>
+        // Built-in song catalog
+        const songCatalog = [
+            {
+                id: 1,
+                title: "Summer Vibes",
+                artist: "Chill Wave",
+                artwork: "https://picsum.photos/200?random=1",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+            },
+            {
+                id: 2,
+                title: "Ocean Dreams",
+                artist: "Beach Beats",
+                artwork: "https://picsum.photos/200?random=2",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            },
+            {
+                id: 3,
+                title: "Mountain Echo",
+                artist: "Nature Sounds",
+                artwork: "https://picsum.photos/200?random=3",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+            },
+            {
+                id: 4,
+                title: "Urban Night",
+                artist: "City Lights",
+                artwork: "https://picsum.photos/200?random=4",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"
+            },
+            {
+                id: 5,
+                title: "Desert Wind",
+                artist: "Sand Storms",
+                artwork: "https://picsum.photos/200?random=5",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"
+            }
+        ];
+
+        let userLibrary = [];
+        let currentSongIndex = 0;
+        let currentView = 'catalog';
+        
+        const searchInput = document.getElementById('searchInput');
+        const catalogContainer = document.getElementById('catalogContainer');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const nowPlayingTitle = document.getElementById('nowPlayingTitle');
+        const nowPlayingArtist = document.getElementById('nowPlayingArtist');
+
+        // Initialize IndexedDB
+        const dbName = "MusicLibraryDB";
+        const dbVersion = 1;
+        let db;
+
+        const request = indexedDB.open(dbName, dbVersion);
+
+        request.onerror = (event) => {
+            console.error("Database error:", event.target.error);
+        };
+
+        request.onupgradeneeded = (event) => {
+            db = event.target.result;
+            if (!db.objectStoreNames.contains("songs")) {
+                db.createObjectStore("songs", { keyPath: "id" });
+            }
+        };
+
+        request.onsuccess = (event) => {
+            db = event.target.result;
+            loadUserLibrary();
+        };
+
+        function loadUserLibrary() {
+            const transaction = db.transaction(["songs"], "readonly");
+            const store = transaction.objectStore("songs");
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                userLibrary = request.result;
+                renderSongs();
+            };
+        }
+
+        function addToLibrary(song) {
+            const transaction = db.transaction(["songs"], "readwrite");
+            const store = transaction.objectStore("songs");
+            store.add(song);
+            userLibrary.push(song);
+            renderSongs();
+        }
+
+        function removeFromLibrary(songId) {
+            const transaction = db.transaction(["songs"], "readwrite");
+            const store = transaction.objectStore("songs");
+            store.delete(songId);
+            userLibrary = userLibrary.filter(song => song.id !== songId);
+            renderSongs();
+        }
+
+        function playSong(song) {
+            audioPlayer.src = song.url;
+            nowPlayingTitle.textContent = song.title;
+            nowPlayingArtist.textContent = song.artist;
+            audioPlayer.play();
+        }
+
+        function playPause() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+            } else {
+                audioPlayer.pause();
+            }
+        }
+
+        function prevSong() {
+            const currentList = currentView === 'catalog' ? songCatalog : userLibrary;
+            if (currentList.length > 0) {
+                currentSongIndex = (currentSongIndex - 1 + currentList.length) % currentList.length;
+                playSong(currentList[currentSongIndex]);
+            }
+        }
+
+        function nextSong() {
+            const currentList = currentView === 'catalog' ? songCatalog : userLibrary;
+            if (currentList.length > 0) {
+                currentSongIndex = (currentSongIndex + 1) % currentList.length;
+                playSong(currentList[currentSongIndex]);
+            }
+        }
+
+        function switchTab(tab) {
+            currentView = tab;
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.toggle('active', t.textContent.toLowerCase().includes(tab));
+            });
+            renderSongs();
+        }
+
+        function renderSongs() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const songs = currentView === 'catalog' ? songCatalog : userLibrary;
+            
+            catalogContainer.innerHTML = '';
+            
+            songs.filter(song => 
+                song.title.toLowerCase().includes(searchTerm) ||
+                song.artist.toLowerCase().includes(searchTerm)
+            ).forEach(song => {
+                const isInLibrary = userLibrary.some(libSong => libSong.id === song.id);
+                
+                const songCard = document.createElement('div');
+                songCard.className = 'song-card';
+songCard.innerHTML = `
+    <img src="${song.artwork}" alt="${song.title}">
+    <h3>${song.title}</h3>
+    <p>${song.artist}</p>
+    <button onclick="playSong(${JSON.stringify(song).replace(/"/g, '&quot;')})">Play</button>
+    ${isInLibrary ? 
+        `<button onclick="removeFromLibrary(${song.id})">Remove from Library</button>` :
+        `<button onclick="addToLibrary(${JSON.stringify(song).replace(/"/g, '&quot;')})">Add to Library</button>`
+    }
+    ${isInLibrary ? '<span class="library-badge">In Library</span>' : ''}
+`;
+                catalogContainer.appendChild(songCard);
+            });
+        }
+
+        searchInput.addEventListener('input', renderSongs);
+        audioPlayer.addEventListener('ended', nextSong);
+
+        // Particle.js configuration
+        particlesJS('particles-js', {
+            "particles": {
+                "number": {
+                    "value": 150,
+                    "density": {
+                        "enable": true,
+                        "value_area": 800
+                    }
+                },
+                "color": {
+                    "value": ["#ffffff", "#a8e6cf", "#dcedc1"]
+                },
+                "shape": {
+                    "type": "circle"
+                },
+                "opacity": {
+                    "value": 0.8,
+                    "random": true,
+                    "anim": {
+                        "enable": true,
+                        "speed": 0.5,
+                        "opacity_min": 0.1,
+                        "sync": false
+                    }
+                },
+                "size": {
+                    "value": 4,
+                    "random": true
+                },
+                "line_linked": {
+                    "enable": false
+                },
+                "move": {
+                    "enable": true,
+                    "speed": 3,
+                    "direction": "bottom",
+                    "random": true,
+                    "straight": false,
+                    "out_mode": "out",
+                    "bounce": false
+                }
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "bubble"
+                    },
+                    "onclick": {
+                        "enable": true,
+                        "mode": "repulse"
+                    },
+                    "resize": true
+                },
+                "modes": {
+                    "bubble": {
+                        "distance": 200,
+                        "size": 6,
+                        "duration": 0.4
+                    },
+                    "repulse": {
+                        "distance": 200,
+                        "duration": 0.4
+                    }
+                }
+            },
+            "retina_detect": true
+        });
+
+        // Initial render
+        renderSongs();
+    </script>
+</body>
+</html>
